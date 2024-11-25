@@ -4,16 +4,43 @@
 int windowWidth = 375;
 int windowHeight = 700;
 int cellSize = 25;
+double lastUpdate=0;
+double currentTime;
+double fallSpeed=1;
 Color bgColour = {0,1,45,1};
 Color whiteMask = {255,255,255,100};
 bool visualiseGrid = true;
+
+
+
+
+bool blockFallDelay(){
+    currentTime = GetTime();
+    if((currentTime-lastUpdate)>=fallSpeed){
+        lastUpdate = currentTime;
+        return true;
+    }
+    return false;
+}
 
 int main(){
     InitWindow(windowWidth,windowHeight,"Tetris");
     SetTargetFPS(60);
 
+    Rectangle block = {
+        0.0f,
+        0.0f,
+        25,
+        25
+    };
+
+
     while(WindowShouldClose()==false){
         BeginDrawing();
+
+        if(blockFallDelay()){
+            block.y+=25;
+        }
 
         if(visualiseGrid)
         {        
@@ -29,6 +56,8 @@ int main(){
                 }
             }
         }
+
+        DrawRectangleRec(block,WHITE);
 
         ClearBackground(bgColour);
         EndDrawing();
