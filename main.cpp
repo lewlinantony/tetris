@@ -1,6 +1,6 @@
 #include <iostream>
 #include <raylib.h>
-
+#include <vector>
 int windowWidth = 375;
 int windowHeight = 700;
 int cellSize = 25;
@@ -23,24 +23,41 @@ bool blockFallDelay(){
     return false;
 }
 
+
+
 int main(){
     InitWindow(windowWidth,windowHeight,"Tetris");
     SetTargetFPS(60);
+    
+    std::vector<Rectangle> blocks;
+        
 
-    Rectangle block = {
-        0.0f,
-        0.0f,
-        25,
-        25
-    };
+
+
 
 
     while(WindowShouldClose()==false){
         BeginDrawing();
 
-        if(blockFallDelay()){
-            if((block.y+25)<=(windowHeight-25)) block.y+=25;
+        if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+            Rectangle tempBlock;
+            tempBlock.height=cellSize;
+            tempBlock.width=cellSize;
+            Vector2 mousePosition = GetMousePosition();
+            tempBlock.x = 25 * floor(mousePosition.x/25);
+            tempBlock.y = 25 * floor(mousePosition.y/25);
+            blocks.insert(blocks.end(),tempBlock);
         }
+
+
+        if(blockFallDelay()){
+            //if((tempBlock.y+25)<=(windowHeight-25)) tempBlock.y+=25;
+            for(Rectangle& block:blocks){
+                if((block.y+25)<=(windowHeight-25)) block.y+=25;
+            }
+        }
+
+
 
         if(visualiseGrid)
         {        
@@ -57,7 +74,9 @@ int main(){
             }
         }
 
-        DrawRectangleRec(block,WHITE);
+        for(Rectangle& block:blocks){
+            DrawRectangleRec(block,WHITE);
+        }
 
         ClearBackground(bgColour);
         EndDrawing();
