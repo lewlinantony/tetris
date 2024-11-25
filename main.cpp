@@ -5,6 +5,7 @@ int windowWidth = 375;
 int windowHeight = 700;
 int cellSize = 25;
 Color bgColour = {0,1,45,1};
+Color whiteMask = {255,255,255,100};
 bool visualiseGrid = true;
 
 int main(){
@@ -24,7 +25,7 @@ int main(){
                         (float)cellSize,
                         (float)cellSize,   // since we are drawing a square width and height are the same i.e. cellsize
                     };
-                    DrawRectangleLinesEx(cell,0.5,WHITE);
+                    DrawRectangleLinesEx(cell,0.5,whiteMask);
                 }
             }
         }
