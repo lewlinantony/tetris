@@ -6,7 +6,7 @@ int windowHeight = 700;
 int cellSize = 25;
 double lastUpdate=0;
 double currentTime;
-double fallSpeed=1;
+double fallSpeed=0.1;
 Color bgColour = {0,1,45,1};
 Color whiteMask = {255,255,255,100};
 bool visualiseGrid = true;
@@ -39,7 +39,7 @@ int main(){
         BeginDrawing();
 
         if(blockFallDelay()){
-            block.y+=25;
+            if((block.y+25)<=(windowHeight-25)) block.y+=25;
         }
 
         if(visualiseGrid)
