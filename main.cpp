@@ -8,7 +8,7 @@ Color bgColour = {0,1,45,1};
 bool visualiseGrid = true;
 
 int main(){
-    InitWindow(windowWidth,windowHeight,"Tetris");‸‸
+    InitWindow(windowWidth,windowHeight,"Tetris");
     SetTargetFPS(60);
 
     while(WindowShouldClose()==false){
