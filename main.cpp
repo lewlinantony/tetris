@@ -1,12 +1,20 @@
 #include <iostream>
 #include <raylib.h>
 #include <vector>
-int windowWidth = 375;
-int windowHeight = 700;
-int cellSize = 25;
+#include <unordered_map>
+
+
+
+const int WINDOW_WIDTH = 375;
+const int WINDOW_HEIGHT = 700;
+const int BLOCK_SIZE = 25;
+const double FALL_SPEED=0.1;
+
+
 double lastUpdate=0;
 double currentTime;
-double fallSpeed=0.1;
+
+
 Color bgColour = {0,1,45,1};
 Color whiteMask = {255,255,255,100};
 bool visualiseGrid = true;
@@ -16,44 +24,61 @@ bool visualiseGrid = true;
 
 bool blockFallDelay(){
     currentTime = GetTime();
-    if((currentTime-lastUpdate)>=fallSpeed){
+    if((currentTime-lastUpdate)>=FALL_SPEED){
         lastUpdate = currentTime;
         return true;
     }
     return false;
 }
 
+void Draw(std::vector<Rectangle>& blocks){
+    for(Rectangle& block:blocks){
+        DrawRectangleRec(block,WHITE);
+    }
 
+}
 
 int main(){
-    InitWindow(windowWidth,windowHeight,"Tetris");
+    InitWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Tetris");
     SetTargetFPS(60);
     
     std::vector<Rectangle> blocks;
-        
-
-
-
-
+    std::unordered_map<float,float> top;
+    for(int i=0;i<WINDOW_WIDTH;i=i+25){
+        top[(float)i]=WINDOW_HEIGHT-25;
+    }
 
     while(WindowShouldClose()==false){
         BeginDrawing();
 
         if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+
             Rectangle tempBlock;
-            tempBlock.height=cellSize;
-            tempBlock.width=cellSize;
             Vector2 mousePosition = GetMousePosition();
+
+
+            tempBlock.height=BLOCK_SIZE;
+            tempBlock.width=BLOCK_SIZE;
+
             tempBlock.x = 25 * floor(mousePosition.x/25);
             tempBlock.y = 25 * floor(mousePosition.y/25);
+
+
+
             blocks.insert(blocks.end(),tempBlock);
         }
 
 
         if(blockFallDelay()){
-            //if((tempBlock.y+25)<=(windowHeight-25)) tempBlock.y+=25;
             for(Rectangle& block:blocks){
-                if((block.y+25)<=(windowHeight-25)) block.y+=25;
+                if(((block.y+25)<=(top[block.x]))){
+                    std::cout<<"A"<<std::endl;
+                    block.y+=25;
+                } 
+                else{
+                    std::cout<<"B"<<std::endl;
+                    top[block.x]=block.y-25;                
+                }
             }
         }
 
@@ -61,22 +86,20 @@ int main(){
 
         if(visualiseGrid)
         {        
-            for(int x=0;x<windowWidth;x=x+cellSize){
-                for(int y=0;y<windowHeight;y+=cellSize){
+            for(int x=0;x<WINDOW_WIDTH;x=x+BLOCK_SIZE){
+                for(int y=0;y<WINDOW_HEIGHT;y+=BLOCK_SIZE){
                     Rectangle cell = {
                         (float)x,
                         (float)y,
-                        (float)cellSize,
-                        (float)cellSize,   // since we are drawing a square width and height are the same i.e. cellsize
+                        (float)BLOCK_SIZE,
+                        (float)BLOCK_SIZE,   // since we are drawing a square width and height are the same i.e. BLOCK_SIZE
                     };
                     DrawRectangleLinesEx(cell,0.5,whiteMask);
                 }
             }
         }
 
-        for(Rectangle& block:blocks){
-            DrawRectangleRec(block,WHITE);
-        }
+        Draw(blocks);
 
         ClearBackground(bgColour);
         EndDrawing();
