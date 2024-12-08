@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <vector>
 #include <unordered_map>
+#include <cstdlib>  
 
 
 
@@ -18,20 +19,25 @@ const std::unordered_map<int,std::vector<int>> shapes = {
                                                         {6, {0, 1}},       
                                                         {7, {0}}      
                                                     };
-const std::unordered_map<std::string, Color> colors = {
-                                                        {"I", BLUE},       
-                                                        {"O", YELLOW},     
-                                                        {"T", PURPLE},     
-                                                        {"S", GREEN},      
-                                                        {"Z", RED},        
-                                                        {"J", DARKBLUE},   
-                                                        {"L", ORANGE}      
+const std::unordered_map<int, Color> colors = {
+                                                        {0, BLUE},       
+                                                        {1, YELLOW},     
+                                                        {2, PURPLE},     
+                                                        {3, GREEN},      
+                                                        {4, RED},        
+                                                        {5, DARKBLUE},   
+                                                        {6, ORANGE}      
                                                     };
 
+struct Block{
+    int x, y;
+    Color color;
+};
 
 double lastUpdate=0;
 double currentTime;
-
+std::vector<Block> activeBlocks;
+std::unordered_map<int,std::unordered_map<int,Color>> staticBlocks;
 
 Color bgColour = {0,1,45,1};
 Color whiteMask = {255,255,255,100};
@@ -51,7 +57,7 @@ bool blockFallDelay(){
 
 void Draw(std::vector<Rectangle>& blocks){
     for(Rectangle& block:blocks){
-        DrawRectangleRec(block,WHITE);
+        DrawRectangleRec(block,colors.at(rand() % 7));
     }
 
 }
@@ -106,6 +112,7 @@ int main(){
     
     std::vector<Rectangle> blocks;
     std::unordered_map<float,float> top;
+
     for(int i=0;i<WINDOW_WIDTH;i=i+25){
         top[(float)i]=WINDOW_HEIGHT-25;
     }
