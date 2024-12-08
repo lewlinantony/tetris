@@ -9,6 +9,24 @@ const int WINDOW_WIDTH = 375;
 const int WINDOW_HEIGHT = 700;
 const int BLOCK_SIZE = 25;
 const double FALL_SPEED=0.1;
+const std::unordered_map<int,std::vector<int>> shapes = {
+                                                        {1, {0, 1, 2, 3}}, 
+                                                        {2, {0, 1, 2, 3}}, 
+                                                        {3, {0, 1, 2, 3}}, 
+                                                        {4, {0, 1, 2, 3}}, 
+                                                        {5, {0, 1}},       
+                                                        {6, {0, 1}},       
+                                                        {7, {0}}      
+                                                    };
+const std::unordered_map<std::string, Color> colors = {
+                                                        {"I", BLUE},       
+                                                        {"O", YELLOW},     
+                                                        {"T", PURPLE},     
+                                                        {"S", GREEN},      
+                                                        {"Z", RED},        
+                                                        {"J", DARKBLUE},   
+                                                        {"L", ORANGE}      
+                                                    };
 
 
 double lastUpdate=0;
