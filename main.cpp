@@ -38,6 +38,10 @@ double lastUpdate=0;
 double currentTime;
 std::vector<Block> activeBlocks;
 std::unordered_map<int,std::unordered_map<int,Color>> staticBlocks;
+std::unordered_map<float,float> top;
+
+
+
 
 Color bgColour = {0,1,45,1};
 Color whiteMask = {255,255,255,100};
@@ -55,10 +59,28 @@ bool blockFallDelay(){
     return false;
 }
 
-void Draw(std::vector<Rectangle>& blocks){
-    for(Rectangle& block:blocks){
-        DrawRectangleRec(block,colors.at(rand() % 7));
+void Draw(){
+    for (auto& cell: activeBlocks){
+        Rectangle block = {
+            (float)cell.x,
+            (float)cell.y,
+            (float)BLOCK_SIZE,
+            (float)BLOCK_SIZE,  
+        };        
+        DrawRectangleRec(block,cell.color);
     }
+    for(auto& cellR:staticBlocks){
+        for(auto& cellC: cellR.second){
+            Rectangle block = {
+                (float)cellR.first,
+                (float)cellC.first,
+                (float)BLOCK_SIZE,
+                (float)BLOCK_SIZE,  
+            };
+            DrawRectangleRec(block,cellC.second);
+        }
+    }
+    DrawText(std::to_string(activeBlocks.size()).c_str(),20,20,10,WHITE);
 
 }
 
@@ -79,30 +101,45 @@ void visualieGrid(bool visualise){
     }
 }
 
-void updateBlocksTop(std::unordered_map<float,float>& top,std::vector<Rectangle>& blocks){
-        for(Rectangle& block:blocks){
-            if(((block.y+25)<=(top[block.x]))){
-                block.y+=25;
-            } 
-            else{
-                top[block.x]=block.y-25;                
-            }
+void updateBlocksTop(std::unordered_map<float,float>& top){
+    // Create a copy of activeBlocks to iterate over
+    std::vector<Block> blocksToUpdate = activeBlocks;
+    activeBlocks.clear();
+
+    for(Block& block: blocksToUpdate){
+        
+        float nextY = block.y + 25;
+
+        if(nextY <= top[block.x]){
+            block.y = nextY;
+            activeBlocks.push_back(block);
         }
+        else {
+            staticBlocks[block.x][block.y] = block.color;
+            top[block.x] = block.y-25;
+        }
+    }
 }
 
-void spawnBlock(std::vector<Rectangle>& blocks){
-    Rectangle tempBlock;
+
+
+void spawnBlock(){
+
     Vector2 mousePosition = GetMousePosition();
 
 
-    tempBlock.height=BLOCK_SIZE;
-    tempBlock.width=BLOCK_SIZE;
+    float x = 25 * floor(mousePosition.x/25);
+    float y = 25 * floor(mousePosition.y/25);
 
-    tempBlock.x = 25 * floor(mousePosition.x/25);
-    tempBlock.y = 25 * floor(mousePosition.y/25);
+    if(((y+25)<=(top[x]))){ //checking if above top
+        Block block;
+        block.x=x;
+        block.y=y;
+        block.color = colors.at(rand() % 7);
+        activeBlocks.push_back(block);
+    } 
 
 
-    blocks.insert(blocks.end(),tempBlock);
 }
 
 
@@ -110,30 +147,30 @@ int main(){
     InitWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Tetris");
     SetTargetFPS(60);
     
-    std::vector<Rectangle> blocks;
-    std::unordered_map<float,float> top;
-
     for(int i=0;i<WINDOW_WIDTH;i=i+25){
         top[(float)i]=WINDOW_HEIGHT-25;
     }
+
+
 
     while(WindowShouldClose()==false){
         BeginDrawing();
 
         if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
-            spawnBlock(blocks);
+            spawnBlock();
         }
 
 
         if(blockFallDelay()){
-            updateBlocksTop(top,blocks);
+            updateBlocksTop(top);
         }
+        
 
 
         visualieGrid(visualise);
 
 
-        Draw(blocks);
+        Draw();
 
         ClearBackground(bgColour);
         EndDrawing();
