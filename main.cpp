@@ -30,6 +30,7 @@ const std::unordered_map<int, Color> COLORS = {
                                                     };
 
 struct Block{
+    Color color;
     int x, y;
 };
 
