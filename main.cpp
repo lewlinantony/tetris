@@ -10,7 +10,7 @@ const int WINDOW_WIDTH = 375;
 const int WINDOW_HEIGHT = 700;
 const int BLOCK_SIZE = 25;
 const double FALL_SPEED=0.1;
-const std::unordered_map<int,std::vector<int>> shapes = {
+const std::unordered_map<int,std::vector<int>> SHAPES = {
                                                         {1, {0, 1, 2, 3}}, 
                                                         {2, {0, 1, 2, 3}}, 
                                                         {3, {0, 1, 2, 3}}, 
@@ -19,7 +19,7 @@ const std::unordered_map<int,std::vector<int>> shapes = {
                                                         {6, {0, 1}},       
                                                         {7, {0}}      
                                                     };
-const std::unordered_map<int, Color> colors = {
+const std::unordered_map<int, Color> COLORS = {
                                                         {0, BLUE},       
                                                         {1, YELLOW},     
                                                         {2, PURPLE},     
@@ -31,8 +31,8 @@ const std::unordered_map<int, Color> colors = {
 
 struct Block{
     int x, y;
-    Color color;
 };
+
 
 double lastUpdate=0;
 double currentTime;
@@ -55,6 +55,29 @@ class Blocks{
                 top[(float)i]=WINDOW_HEIGHT-25;
             }
         }
+
+        void spawnBlock(){
+
+            Vector2 mousePosition = GetMousePosition();
+
+
+            float x = 25 * floor(mousePosition.x/25);
+            float y = 25.0;
+            Color color = COLORS.at(rand() % 7);
+
+            for(int i=0;i<4;i++){
+                if(((y)<=(top[x]))){ //checking if above top
+                    Block block;
+                    block.x=x+(25*i);
+                    block.y=y;
+                    block.color = color;
+                    activeBlocks.push_back(block);
+                } 
+            }
+
+
+        }        
+
         bool blockFallDelay(){
             currentTime = GetTime();
             if((currentTime-lastUpdate)>=FALL_SPEED){
@@ -85,25 +108,31 @@ class Blocks{
                     DrawRectangleRec(block,cellC.second);
                 }
             }
-            DrawText(std::to_string(activeBlocks.size()).c_str(),20,20,10,WHITE);
+            DrawText(std::to_string(activeBlocks.size()).c_str(),20,20,30,WHITE);
 
         }
 
 
         void updateBlocksTop(std::unordered_map<float,float>& top){
+
             // Create a copy of activeBlocks to iterate over
             std::vector<Block> blocksToUpdate = activeBlocks;
             activeBlocks.clear();
             Vector2 mousePosition = GetMousePosition();
 
+
             for(Block& block: blocksToUpdate){
 
                 float nextY = block.y + 25;
-                block.x= 25 * floor(mousePosition.x/25);
-                if (block.x>WINDOW_WIDTH)
+                float nextX = block.x;
+
+                if (nextX>=WINDOW_WIDTH)
                     block.x=350;
-                else if (block.x<0)
+                else if (nextX<=0)
                     block.x=0;
+                else
+                    block.x = nextX;
+
 
                 if(nextY <= top[block.x]){
                     block.y = nextY;
@@ -118,25 +147,7 @@ class Blocks{
 
 
 
-        void spawnBlock(){
 
-            Vector2 mousePosition = GetMousePosition();
-
-
-            float x = 25 * floor(mousePosition.x/25);
-            float y = 25.0;
-
-            if(((y)<=(top[x]))){ //checking if above top
-
-                Block block;
-                block.x=x;
-                block.y=y;
-                block.color = colors.at(rand() % 7);
-                activeBlocks.push_back(block);
-            } 
-
-
-        }
 
 };
 
