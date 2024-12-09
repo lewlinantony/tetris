@@ -14,7 +14,7 @@ const std::unordered_map<int,std::vector<int>> shapes = {
                                                         {1, {0, 1, 2, 3}}, 
                                                         {2, {0, 1, 2, 3}}, 
                                                         {3, {0, 1, 2, 3}}, 
-                                                        {4, {0, 1, 2, 3}}, 
+                                                        {4, {0, 1}}, 
                                                         {5, {0, 1}},       
                                                         {6, {0, 1}},       
                                                         {7, {0}}      
@@ -84,31 +84,21 @@ void Draw(){
 
 }
 
-void visualieGrid(bool visualise){
-    if(visualise)
-    {        
-        for(int x=0;x<WINDOW_WIDTH;x=x+BLOCK_SIZE){
-            for(int y=0;y<WINDOW_HEIGHT;y+=BLOCK_SIZE){
-                Rectangle cell = {
-                    (float)x,
-                    (float)y,
-                    (float)BLOCK_SIZE,
-                    (float)BLOCK_SIZE,   // since we are drawing a square width and height are the same i.e. BLOCK_SIZE
-                };
-                DrawRectangleLinesEx(cell,0.5,whiteMask);
-            }
-        }
-    }
-}
 
 void updateBlocksTop(std::unordered_map<float,float>& top){
     // Create a copy of activeBlocks to iterate over
     std::vector<Block> blocksToUpdate = activeBlocks;
     activeBlocks.clear();
+    Vector2 mousePosition = GetMousePosition();
 
     for(Block& block: blocksToUpdate){
-        
+
         float nextY = block.y + 25;
+        block.x= 25 * floor(mousePosition.x/25);
+        if (block.x>WINDOW_WIDTH)
+            block.x=350;
+        else if (block.x<0)
+            block.x=0;
 
         if(nextY <= top[block.x]){
             block.y = nextY;
@@ -129,9 +119,10 @@ void spawnBlock(){
 
 
     float x = 25 * floor(mousePosition.x/25);
-    float y = 25 * floor(mousePosition.y/25);
+    float y = 25.0;
 
-    if(((y+25)<=(top[x]))){ //checking if above top
+    if(((y)<=(top[x]))){ //checking if above top
+
         Block block;
         block.x=x;
         block.y=y;
@@ -142,6 +133,23 @@ void spawnBlock(){
 
 }
 
+
+void visualieGrid(bool visualise){
+    if(visualise)
+    {        
+        for(int x=0;x<WINDOW_WIDTH;x=x+BLOCK_SIZE){
+            for(int y=0;y<WINDOW_HEIGHT;y+=BLOCK_SIZE){
+                Rectangle cell = {
+                    (float)x,
+                    (float)y,
+                    (float)BLOCK_SIZE,
+                    (float)BLOCK_SIZE,   // since we are drawing a square width and height are the same i.e. BLOCK_SIZE
+                };
+                DrawRectangleLinesEx(cell,0.5,whiteMask);
+            }
+        }
+    }
+}
 
 int main(){
     InitWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Tetris");
@@ -163,8 +171,7 @@ int main(){
 
         if(blockFallDelay()){
             updateBlocksTop(top);
-        }
-        
+        }        
 
 
         visualieGrid(visualise);
