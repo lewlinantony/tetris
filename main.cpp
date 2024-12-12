@@ -9,7 +9,8 @@
 const int WINDOW_WIDTH = 375;
 const int WINDOW_HEIGHT = 700;
 const int BLOCK_SIZE = 25;
-const double FALL_SPEED=0.1;
+const double Y_SPEED=0.5;
+const double X_SPEED=0.5;
 const std::unordered_map<int,std::vector<int>> SHAPES = {
                                                         {1, {0, 1, 2, 3}}, 
                                                         {2, {0, 1, 2, 3}}, 
@@ -34,6 +35,44 @@ struct Block{
     int x, y;
 };
 
+float Scale25(float num){
+    return (25 * floor(num/25));
+}
+
+class Shape{
+    public:
+        std::vector<Block> blocks;
+        float mid;
+        float max;
+        float min;
+        Color color;
+        int shape;
+        int rotation;
+
+        Shape(){
+            shape = 4;
+            rotation = 0;
+            mid = Scale25(WINDOW_WIDTH/2);
+            color = COLORS.at(rand() % 7);
+            min = INT_MAX;
+            max = INT_MIN;
+            if(shape==4 && rotation==0){
+                float xStart = mid - 50;
+
+                for(int i=0;i<4;i++){                    
+                    Block b;
+                    b.x = xStart+(i*25);
+                    if (b.x>max)    max = b.x;
+                    if (b.x<min)    min = b.x;
+                    b.y = 25.0;
+                    b.color = color;
+                    blocks.push_back(b);
+                }
+            }
+        }
+
+};
+
 
 double lastUpdate=0;
 double currentTime;
@@ -47,7 +86,7 @@ Color whiteMask = {255,255,255,100};
 
 class Blocks{
     public:
-        std::vector<Block> activeBlocks;
+        Shape activeShape;
         std::unordered_map<int,std::unordered_map<int,Color>> staticBlocks;
         std::unordered_map<float,float> top;
 
@@ -59,29 +98,24 @@ class Blocks{
 
         void spawnBlock(){
 
-            Vector2 mousePosition = GetMousePosition();
-
-
-            float x = 25 * floor(mousePosition.x/25);
-            float y = 25.0;
-            Color color = COLORS.at(rand() % 7);
-
-            for(int i=0;i<4;i++){
-                if(((y)<=(top[x]))){ //checking if above top
-                    Block block;
-                    block.x=x+(25*i);
-                    block.y=y;
-                    block.color = color;
-                    activeBlocks.push_back(block);
-                } 
-            }
-
+            activeShape = Shape();
 
         }        
 
-        bool blockFallDelay(){
+        bool blockMovementXDelay(){
             currentTime = GetTime();
-            if((currentTime-lastUpdate)>=FALL_SPEED){
+            if((currentTime-lastUpdate)>=X_SPEED){
+                lastUpdate = currentTime;
+                return true;
+            }
+            return false;
+        }
+
+
+
+        bool blockMovementYDelay(){
+            currentTime = GetTime();
+            if((currentTime-lastUpdate)>=Y_SPEED){
                 lastUpdate = currentTime;
                 return true;
             }
@@ -89,7 +123,7 @@ class Blocks{
         }
 
         void Draw(){
-            for (auto& cell: activeBlocks){
+            for (auto& cell: activeShape.blocks){
                 Rectangle block = {
                     (float)cell.x,
                     (float)cell.y,
@@ -109,45 +143,100 @@ class Blocks{
                     DrawRectangleRec(block,cellC.second);
                 }
             }
-            DrawText(std::to_string(activeBlocks.size()).c_str(),20,20,30,WHITE);
 
+            Vector2 mousePosition = GetMousePosition();
+            Rectangle block = {
+                (float)Scale25(mousePosition.x),
+                (float)Scale25(mousePosition.y),
+                (float)BLOCK_SIZE,
+                (float)BLOCK_SIZE,  
+            };        
+            DrawRectangleRec(block,WHITE);
+            float updateX = Scale25(mousePosition.x - activeShape.mid);
+            float begin = activeShape.min;
+            float nextBegin = begin + updateX;
+            float end = activeShape.max;
+            float nextEnd = end + updateX;            
+            std::string displayText = "Min: " + std::to_string(activeShape.min) + 
+                                    ", Max: " + std::to_string(activeShape.max);
+            DrawText(((nextBegin<0) || (nextEnd>WINDOW_WIDTH)) ? "true" : "false", 20, 35, 30, WHITE);                                    
+            DrawText(displayText.c_str(), 20, 20, 15, WHITE);
         }
 
-
-        void updateBlocksTop(std::unordered_map<float,float>& top){
-
-            // Create a copy of activeBlocks to iterate over
-            std::vector<Block> blocksToUpdate = activeBlocks;
-            activeBlocks.clear();
-            Vector2 mousePosition = GetMousePosition();
-
-
+        void justFall(std::unordered_map<float,float>& top,std::vector<Block> blocksToUpdate){
+            activeShape.blocks.clear();
             for(Block& block: blocksToUpdate){
 
                 float nextY = block.y + 25;
-                float nextX = block.x;
-
-                if (nextX>=WINDOW_WIDTH)
-                    block.x=350;
-                else if (nextX<=0)
-                    block.x=0;
-                else
-                    block.x = nextX;
-
 
                 if(nextY <= top[block.x]){
-                    block.y = nextY;
-                    activeBlocks.push_back(block);
+                    block.y = nextY;                
+                    activeShape.blocks.push_back(block);
                 }
                 else {
                     staticBlocks[block.x][block.y] = block.color;
                     top[block.x] = block.y-25;
+                    continue;
                 }
             }
         }
+        void updateBlocksTop(std::unordered_map<float,float>& top){
+
+            // Create a copy of activeShape to iterate over
+            std::vector<Block> blocksToUpdate = activeShape.blocks;
+            if (activeShape.blocks.empty()) {
+                std::cout << "activeShape.blocks is empty!" << std::endl;
+                return;
+            }            
+            activeShape.blocks.clear();
+
+            Vector2 mousePosition = GetMousePosition();
+            float updateX = Scale25(mousePosition.x - activeShape.mid);
+            float begin = activeShape.min;
+            float nextBegin = begin + updateX;
+
+            float end = activeShape.max;
+            float nextEnd = end + updateX;
 
 
+            if ((nextBegin<0) || (nextEnd>(WINDOW_WIDTH-25))){
+                updateX=0;
+            }
+            float sumX=0;
 
+            float max = INT_MIN;
+            float min = INT_MAX;
+
+            for(Block& block: blocksToUpdate){
+
+                float nextY = block.y + 25;
+                float nextX = block.x + updateX;
+
+                if(nextY <= top[block.x]){
+                    block.y = nextY;  
+                    block.x = nextX;
+              
+                }
+                else {
+                    staticBlocks[block.x][block.y] = block.color;
+                    top[block.x] = block.y-25;
+                    continue;
+                }
+
+                
+
+                activeShape.blocks.push_back(block);
+                sumX+=block.x;
+                if (block.x>max)    max = block.x;
+                if (block.x<min)    min = block.x;
+
+            }
+
+            activeShape.mid = sumX/4;
+            activeShape.min = min;
+            activeShape.max = max;
+            
+        }
 
 
 };
@@ -203,7 +292,7 @@ int main(){
         }
 
 
-        if(game.blocks.blockFallDelay()){
+        if(game.blocks.blockMovementYDelay()){
             game.blocks.updateBlocksTop(game.blocks.top);
         }        
 
