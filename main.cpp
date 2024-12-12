@@ -10,9 +10,11 @@
 
 const int WINDOW_WIDTH = 375;
 const int WINDOW_HEIGHT = 700;
-const int BLOCK_SIZE = 25;
-const double Y_SPEED=0.3;
+const float BLOCK_SIZE = 25.0;
+const double Y_SPEED=0.5;
 const double X_SPEED=0.05;
+Color BG_COLOR = {0,1,45,1};
+Color WHITE_MASK = {255,255,255,100};
 const std::unordered_map<int,std::vector<int>> SHAPES = {
                                                         {1, {0, 1, 2, 3}}, 
                                                         {2, {0, 1, 2, 3}}, 
@@ -37,17 +39,17 @@ const std::unordered_map<int, Color> COLORS = {
 
 double lastUpdateX=0;
 double lastUpdateY=0;
-double currentTime;
-
-
+double currentTime=GetTime();
 
 struct Block{
     Color color;
     int x, y;
 };
 
+
+
 float Scale25(float num){
-    return (25 * floor(num/25));
+    return (BLOCK_SIZE * floor(num/BLOCK_SIZE));
 }
 
 class Shape{
@@ -72,10 +74,10 @@ class Shape{
 
                 for(int i=0;i<4;i++){                    
                     Block b;
-                    b.x = xStart+(i*25);
+                    b.x = xStart+(i*BLOCK_SIZE);
                     if (b.x>max)    max = b.x;
                     if (b.x<min)    min = b.x;
-                    b.y = 25.0;
+                    b.y = BLOCK_SIZE;
                     b.color = color;
                     blocks.push_back(b);
                 }
@@ -90,8 +92,7 @@ class Shape{
 
 
 
-Color bgColour = {0,1,45,1};
-Color whiteMask = {255,255,255,100};
+
 
 class Blocks{
     public:
@@ -100,8 +101,8 @@ class Blocks{
         std::unordered_map<float,float> top;
 
         Blocks(){
-            for(int i=0;i<WINDOW_WIDTH;i=i+25){
-                top[(float)i]=WINDOW_HEIGHT-25;
+            for(int i=0;i<WINDOW_WIDTH;i=i+BLOCK_SIZE){
+                top[(float)i]=WINDOW_HEIGHT-BLOCK_SIZE;
             }
         }
 
@@ -193,14 +194,14 @@ class Blocks{
             activeShape.blocks.clear();
 
             for (Block& block : blocksToUpdate) {
-                float nextY = block.y + 25;
+                float nextY = block.y + BLOCK_SIZE;
 
                 if (nextY <= top[block.x]) {
                     block.y = nextY;
                     activeShape.blocks.push_back(block);
                 } else {
                     staticBlocks[block.x][block.y] = block.color;
-                    top[block.x] = block.y - 25;
+                    top[block.x] = block.y - BLOCK_SIZE;
                     continue;
                 }
             }
@@ -230,7 +231,7 @@ class Game{
                             (float)BLOCK_SIZE,
                             (float)BLOCK_SIZE,   // since we are drawing a square width and height are the same i.e. BLOCK_SIZE
                         };
-                        DrawRectangleLinesEx(cell,0.5,whiteMask);
+                        DrawRectangleLinesEx(cell,0.5,WHITE_MASK);
                     }
                 }
             }
@@ -272,7 +273,7 @@ int main(){
 
         game.Draw();
 
-        ClearBackground(bgColour);
+        ClearBackground(BG_COLOR);
         EndDrawing();
     }
 
