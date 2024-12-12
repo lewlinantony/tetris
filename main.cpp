@@ -6,11 +6,13 @@
 
 
 
+
+
 const int WINDOW_WIDTH = 375;
 const int WINDOW_HEIGHT = 700;
 const int BLOCK_SIZE = 25;
 const double Y_SPEED=0.5;
-const double X_SPEED=0.5;
+const double X_SPEED=0.05;
 const std::unordered_map<int,std::vector<int>> SHAPES = {
                                                         {1, {0, 1, 2, 3}}, 
                                                         {2, {0, 1, 2, 3}}, 
@@ -29,6 +31,15 @@ const std::unordered_map<int, Color> COLORS = {
                                                         {5, DARKBLUE},   
                                                         {6, ORANGE}      
                                                     };
+
+
+
+
+double lastUpdateX=0;
+double lastUpdateY=0;
+double currentTime;
+
+
 
 struct Block{
     Color color;
@@ -74,8 +85,6 @@ class Shape{
 };
 
 
-double lastUpdate=0;
-double currentTime;
 
 
 
@@ -104,8 +113,8 @@ class Blocks{
 
         bool blockMovementXDelay(){
             currentTime = GetTime();
-            if((currentTime-lastUpdate)>=X_SPEED){
-                lastUpdate = currentTime;
+            if((currentTime-lastUpdateX)>=X_SPEED){
+                lastUpdateX = currentTime;
                 return true;
             }
             return false;
@@ -115,8 +124,8 @@ class Blocks{
 
         bool blockMovementYDelay(){
             currentTime = GetTime();
-            if((currentTime-lastUpdate)>=Y_SPEED){
-                lastUpdate = currentTime;
+            if((currentTime-lastUpdateY)>=Y_SPEED){
+                lastUpdateY = currentTime;
                 return true;
             }
             return false;
@@ -180,9 +189,48 @@ class Blocks{
                 }
             }
         }
-        void updateBlocksTop(std::unordered_map<float,float>& top){
 
-            // Create a copy of activeShape to iterate over
+
+
+        void updateBlocksX() {        
+
+            Vector2 mousePosition = GetMousePosition();
+            float mouseX=mousePosition.x;
+        
+
+            float updateX = Scale25(mouseX - activeShape.mid);
+            
+            float begin = activeShape.min;
+            float nextBegin = begin + updateX;
+            float end = activeShape.max;
+            float nextEnd = end + updateX;
+
+            // Boundary check
+            if ((nextBegin < 0) || (nextEnd > (WINDOW_WIDTH - 25))) {
+                updateX = 0;
+            }
+
+            float sumX = 0;
+            float max = activeShape.blocks[0].x;  
+            float min = activeShape.blocks[0].x;  
+
+            for (Block& block : activeShape.blocks) {
+                float nextX = block.x + updateX;
+                block.x = nextX;
+                
+                sumX += block.x;
+                if (block.x>max)    max = block.x;
+                if (block.x<min)    min = block.x;
+            }
+
+            activeShape.mid = sumX / activeShape.blocks.size();
+            activeShape.min = min;
+            activeShape.max = max;
+            return;
+        }
+
+        void updateBlocksY(std::unordered_map<float,float>& top) {
+
             std::vector<Block> blocksToUpdate = activeShape.blocks;
             if (activeShape.blocks.empty()) {
                 std::cout << "activeShape.blocks is empty!" << std::endl;
@@ -190,52 +238,19 @@ class Blocks{
             }            
             activeShape.blocks.clear();
 
-            Vector2 mousePosition = GetMousePosition();
-            float updateX = Scale25(mousePosition.x - activeShape.mid);
-            float begin = activeShape.min;
-            float nextBegin = begin + updateX;
-
-            float end = activeShape.max;
-            float nextEnd = end + updateX;
-
-
-            if ((nextBegin<0) || (nextEnd>(WINDOW_WIDTH-25))){
-                updateX=0;
-            }
-            float sumX=0;
-
-            float max = INT_MIN;
-            float min = INT_MAX;
-
-            for(Block& block: blocksToUpdate){
-
+            for (Block& block : blocksToUpdate) {
                 float nextY = block.y + 25;
-                float nextX = block.x + updateX;
 
-                if(nextY <= top[block.x]){
-                    block.y = nextY;  
-                    block.x = nextX;
-              
-                }
-                else {
+                if (nextY <= top[block.x]) {
+                    block.y = nextY;
+                    activeShape.blocks.push_back(block);
+                } else {
                     staticBlocks[block.x][block.y] = block.color;
-                    top[block.x] = block.y-25;
+                    top[block.x] = block.y - 25;
                     continue;
                 }
-
-                
-
-                activeShape.blocks.push_back(block);
-                sumX+=block.x;
-                if (block.x>max)    max = block.x;
-                if (block.x<min)    min = block.x;
-
             }
-
-            activeShape.mid = sumX/4;
-            activeShape.min = min;
-            activeShape.max = max;
-            
+            return;
         }
 
 
@@ -291,10 +306,12 @@ int main(){
             game.blocks.spawnBlock();
         }
 
+        // if(game.blocks.blockMovementXDelay())
+            game.blocks.updateBlocksX();
 
-        if(game.blocks.blockMovementYDelay()){
-            game.blocks.updateBlocksTop(game.blocks.top);
-        }        
+        if(game.blocks.blockMovementYDelay())
+            game.blocks.updateBlocksY(game.blocks.top);      
+
 
 
         game.visualieGrid();
