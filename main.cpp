@@ -11,7 +11,7 @@
 const int WINDOW_WIDTH = 375;
 const int WINDOW_HEIGHT = 700;
 const int BLOCK_SIZE = 25;
-const double Y_SPEED=0.5;
+const double Y_SPEED=0.3;
 const double X_SPEED=0.05;
 const std::unordered_map<int,std::vector<int>> SHAPES = {
                                                         {1, {0, 1, 2, 3}}, 
@@ -152,67 +152,25 @@ class Blocks{
                     DrawRectangleRec(block,cellC.second);
                 }
             }
+  
 
-            Vector2 mousePosition = GetMousePosition();
-            Rectangle block = {
-                (float)Scale25(mousePosition.x),
-                (float)Scale25(mousePosition.y),
-                (float)BLOCK_SIZE,
-                (float)BLOCK_SIZE,  
-            };        
-            DrawRectangleRec(block,WHITE);
-            float updateX = Scale25(mousePosition.x - activeShape.mid);
-            float begin = activeShape.min;
-            float nextBegin = begin + updateX;
-            float end = activeShape.max;
-            float nextEnd = end + updateX;            
-            std::string displayText = "Min: " + std::to_string(activeShape.min) + 
-                                    ", Max: " + std::to_string(activeShape.max);
-            DrawText(((nextBegin<0) || (nextEnd>WINDOW_WIDTH)) ? "true" : "false", 20, 35, 30, WHITE);                                    
-            DrawText(displayText.c_str(), 20, 20, 15, WHITE);
         }
-
-        void justFall(std::unordered_map<float,float>& top,std::vector<Block> blocksToUpdate){
-            activeShape.blocks.clear();
-            for(Block& block: blocksToUpdate){
-
-                float nextY = block.y + 25;
-
-                if(nextY <= top[block.x]){
-                    block.y = nextY;                
-                    activeShape.blocks.push_back(block);
-                }
-                else {
-                    staticBlocks[block.x][block.y] = block.color;
-                    top[block.x] = block.y-25;
-                    continue;
-                }
-            }
-        }
-
 
 
         void updateBlocksX() {        
 
             Vector2 mousePosition = GetMousePosition();
-            float mouseX=mousePosition.x;
-        
+            float mouseX = std::clamp(mousePosition.x, 50.0f, static_cast<float>(WINDOW_WIDTH - 50));
+
 
             float updateX = Scale25(mouseX - activeShape.mid);
             
-            float begin = activeShape.min;
-            float nextBegin = begin + updateX;
-            float end = activeShape.max;
-            float nextEnd = end + updateX;
-
-            // Boundary check
-            if ((nextBegin < 0) || (nextEnd > (WINDOW_WIDTH - 25))) {
-                updateX = 0;
-            }
-
             float sumX = 0;
             float max = activeShape.blocks[0].x;  
             float min = activeShape.blocks[0].x;  
+             
+            std::string displayText = std::to_string(mouseX);
+            DrawText(displayText.c_str(), 20, 20, 15, WHITE);
 
             for (Block& block : activeShape.blocks) {
                 float nextX = block.x + updateX;
@@ -226,16 +184,12 @@ class Blocks{
             activeShape.mid = sumX / activeShape.blocks.size();
             activeShape.min = min;
             activeShape.max = max;
-            return;
         }
 
         void updateBlocksY(std::unordered_map<float,float>& top) {
 
             std::vector<Block> blocksToUpdate = activeShape.blocks;
-            if (activeShape.blocks.empty()) {
-                std::cout << "activeShape.blocks is empty!" << std::endl;
-                return;
-            }            
+
             activeShape.blocks.clear();
 
             for (Block& block : blocksToUpdate) {
@@ -250,7 +204,6 @@ class Blocks{
                     continue;
                 }
             }
-            return;
         }
 
 
@@ -306,10 +259,10 @@ int main(){
             game.blocks.spawnBlock();
         }
 
-        // if(game.blocks.blockMovementXDelay())
+        if ((!game.blocks.activeShape.blocks.empty()) && (game.blocks.blockMovementXDelay()))
             game.blocks.updateBlocksX();
 
-        if(game.blocks.blockMovementYDelay())
+        if((game.blocks.blockMovementYDelay()) && (!game.blocks.activeShape.blocks.empty()))
             game.blocks.updateBlocksY(game.blocks.top);      
 
 
