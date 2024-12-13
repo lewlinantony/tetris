@@ -40,7 +40,7 @@ const std::unordered_map<int, Color> COLORS = {
 double lastUpdateX=0;
 double lastUpdateY=0;
 double currentTime=GetTime();
-
+bool spawn = true;
 struct Block{
     Color color;
     int x, y;
@@ -73,17 +73,31 @@ class Shape{
             yMax = INT_MIN;
             if(shape==4 && rotation==0){
                 float xStart = mid - 50;
-
+                float yStart = BLOCK_SIZE;
                 for(int i=0;i<4;i++){                    
                     Block b;
                     b.x = xStart+(i*BLOCK_SIZE);
                     if (b.x>xMax)    xMax = b.x;
                     if (b.x<xMin)    xMin = b.x;
                     if (b.x>yMax)    yMax = b.x;
-                    b.y = BLOCK_SIZE;
+                    b.y = yStart;
                     b.color = color;
                     blocks.push_back(b);
                 }
+            }
+            else if(shape==4 && rotation==1){
+                float xStart = mid;
+                float yStart = BLOCK_SIZE;
+                for(int i=0;i<4;i++){                    
+                    Block b;
+                    b.y = yStart+(i*BLOCK_SIZE);
+                    if (b.x>xMax)    xMax = b.x;
+                    if (b.x<xMin)    xMin = b.x;
+                    if (b.x>yMax)    yMax = b.x;
+                    b.x = xStart;
+                    b.color = color;
+                    blocks.push_back(b);
+                }                
             }
         }
 
@@ -154,11 +168,55 @@ class Blocks{
                     DrawRectangleRec(block,cellC.second.color);
                 }
             }
+    
+
       
   
 
         }
 
+        bool fallOrNot(std::vector<Block> blocksToUpdate){
+
+            for(Block& block: blocksToUpdate){
+                if ((top[block.x]-block.y)==0){
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        void updateBlocksY(std::unordered_map<float,float>& top) {
+
+
+            // std::vector<Block> blocksToUpdate = activeShape.blocks;            
+            // activeShape.blocks.clear();
+            float yMax = INT_MIN;  
+            bool fall = fallOrNot(activeShape.blocks);
+
+
+            for (Block& block : activeShape.blocks) {
+
+                float nextY = std::clamp(block.y + BLOCK_SIZE, 50.0f, static_cast<float>(WINDOW_HEIGHT - BLOCK_SIZE));
+
+
+                if (fall){         
+                    block.y = nextY;                 
+                } 
+                else{
+                    staticBlocks[block.x][block.y] = block;
+                    top[block.x] = std::min(top[block.x],block.y - BLOCK_SIZE);
+                    spawn = true;          
+                }           
+                if (block.y>yMax)    yMax = block.y;
+
+            }
+
+            activeShape.yMax = yMax;
+
+            std::string displayText2 = std::to_string(activeShape.yMax+BLOCK_SIZE);
+            DrawText(displayText2.c_str(), 10, 10, 15, WHITE);              
+
+        }
 
         void updateBlocksX() {        
 
@@ -187,38 +245,6 @@ class Blocks{
             activeShape.xMax = xMax;
         }
 
-        void updateBlocksY(std::unordered_map<float,float>& top) {
-
-            float currentTop = WINDOW_HEIGHT-BLOCK_SIZE;
-
-            std::vector<Block> blocksToUpdate = activeShape.blocks;            
-            activeShape.blocks.clear();
-            float yMax = activeShape.blocks[0].y;  
-
-            for(Block& block: blocksToUpdate){
-                currentTop = top[block.x]<currentTop ? top[block.x] : currentTop;
-            }
-
-            for (Block& block : blocksToUpdate) {
-                float nextY = block.y + BLOCK_SIZE;
-
-                if (nextY <= currentTop){
-                    block.y = nextY;
-                    activeShape.blocks.push_back(block);                        
-                } 
-                else{
-                    staticBlocks[block.x][block.y] = block;
-                    top[block.x] = block.y - BLOCK_SIZE;
-
-                }           
-                if (block.y>yMax)    yMax = block.x;
-
-            }
-
-
-            std::string displayText2 = std::to_string(currentTop);
-            DrawText(displayText2.c_str(), 20, 20, 15, WHITE);                         
-        }
         
 
 
@@ -228,8 +254,18 @@ class Game{
     public:
         Blocks blocks = Blocks();
         bool visualise = true;
+        bool gameOver = false;
 
-    
+        void checkGameOver() {
+            for (auto& rowX : blocks.staticBlocks) {
+                for (auto& cell : rowX.second) {
+                    if (cell.second.y <= (BLOCK_SIZE*3)) {
+                        gameOver = true;
+                        return;
+                    }
+                }
+            }
+        }    
         void Draw(){
             blocks.Draw();
         }
@@ -250,6 +286,11 @@ class Game{
                 }
             }
         }
+        void Reset() {
+            blocks = Blocks();  
+            gameOver = false;
+            spawn = true;
+        }        
 
 
 };
@@ -266,21 +307,36 @@ int main(){
     while(WindowShouldClose()==false){
         BeginDrawing();
 
-        if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
-            game.blocks.spawnBlock();
+
+        if(!game.gameOver){
+            if(spawn){
+                game.blocks.spawnBlock();
+                spawn = false;
+            }
+
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+                while(!spawn)
+                    game.blocks.updateBlocksY(game.blocks.top);
+            }
+
+            if ((!game.blocks.activeShape.blocks.empty()) && (game.blocks.blockMovementXDelay()))
+                game.blocks.updateBlocksX();
+
+            if((game.blocks.blockMovementYDelay()) && (!game.blocks.activeShape.blocks.empty()))
+                game.blocks.updateBlocksY(game.blocks.top);    
+
+            game.checkGameOver();
+        }
+        else{
+            if (IsKeyPressed(KEY_R)) {
+                game.Reset();
+            }
         }
 
-        if ((!game.blocks.activeShape.blocks.empty()) && (game.blocks.blockMovementXDelay()))
-            game.blocks.updateBlocksX();
-
-        if((game.blocks.blockMovementYDelay()) && (!game.blocks.activeShape.blocks.empty()))
-            game.blocks.updateBlocksY(game.blocks.top);      
-
-
+        std::string displayText2 = std::to_string(game.gameOver);
+        DrawText(displayText2.c_str(), 15, 15, 10, WHITE); 
 
         game.visualieGrid();
-
-
         game.Draw();
 
         ClearBackground(BG_COLOR);
