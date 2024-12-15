@@ -15,15 +15,60 @@ const double Y_SPEED=0.1;
 const double X_SPEED=0.05;
 Color BG_COLOR = {0,1,45,1};
 Color WHITE_MASK = {255,255,255,100};
-const std::unordered_map<int,std::vector<int>> SHAPES = {
-                                                        {1, {0, 1, 2, 3}}, 
-                                                        {2, {0, 1, 2, 3}}, 
-                                                        {3, {0, 1, 2, 3}}, 
-                                                        {4, {0, 1}}, 
-                                                        {5, {0, 1}},       
-                                                        {6, {0, 1}},       
-                                                        {7, {0}}      
-                                                    };
+
+enum shapeType {
+    I_SHAPE,
+    O_SHAPE,
+    T_SHAPE,
+    L_SHAPE,
+    J_SHAPE,
+    S_SHAPE,
+    Z_SHAPE
+};
+
+const std::unordered_map<shapeType, std::vector<std::vector<std::pair<int, int>>>> shapes = {
+
+        {shapeType::I_SHAPE, {
+            {{0, 0}, {1, 0}, {2, 0}, {3, 0}}, // Horizontal
+            {{0, 0}, {0, 1}, {0, 2}, {0, 3}}  // Vertical
+        }},
+
+        {shapeType::O_SHAPE, {
+            {{0, 0}, {1, 0}, {0, 1}, {1, 1}}  // Single rotation
+        }},
+
+        {shapeType::T_SHAPE, {
+            {{1, 0}, {0, 1}, {1, 1}, {2, 1}}, // T-up
+            {{1, 0}, {1, 1}, {2, 1}, {1, 2}}, // T-right
+            {{0, 1}, {1, 1}, {2, 1}, {1, 2}}, // T-down
+            {{1, 0}, {0, 1}, {1, 1}, {1, 2}}  // T-left
+        }},
+
+        {shapeType::L_SHAPE, {
+            {{0, 0}, {0, 1}, {1, 1}, {2, 1}}, // L-up
+            {{1, 0}, {2, 0}, {1, 1}, {1, 2}}, // L-right
+            {{0, 1}, {1, 1}, {2, 1}, {2, 2}}, // L-down
+            {{1, 0}, {1, 1}, {1, 2}, {0, 2}}  // L-left
+        }},
+
+        {shapeType::J_SHAPE, {
+            {{2, 0}, {0, 1}, {1, 1}, {2, 1}}, // J-up
+            {{1, 0}, {1, 1}, {1, 2}, {2, 2}}, // J-right
+            {{0, 1}, {1, 1}, {2, 1}, {0, 2}}, // J-down
+            {{1, 0}, {1, 1}, {1, 2}, {0, 0}}  // J-left
+        }},
+
+        {shapeType::S_SHAPE, {
+            {{1, 0}, {2, 0}, {0, 1}, {1, 1}}, // S-horizontal
+            {{0, 0}, {0, 1}, {1, 1}, {1, 2}}  // S-vertical
+        }},
+
+        {shapeType::Z_SHAPE, {
+            {{0, 0}, {1, 0}, {1, 1}, {2, 1}}, // Z-horizontal
+            {{1, 0}, {0, 1}, {1, 1}, {0, 2}}  // Z-vertical
+        }}
+    };
+
 const std::unordered_map<int, Color> COLORS = {
                                                         {0, BLUE},       
                                                         {1, YELLOW},     
@@ -54,52 +99,38 @@ float Scale25(float num){
 
 class Shape{
     public:
-        std::vector<Block> blocks;
-        float mid;
-        float xMax;
-        float xMin;
-        float yMax;
-        Color color;
-        int shape;
-        int rotation;
 
-        Shape(){
-            shape = 4;
-            rotation = 0;
-            mid = Scale25(WINDOW_WIDTH/2);
-            color = COLORS.at(rand() % 7);
-            xMin = INT_MAX;
-            xMax = INT_MIN;
-            yMax = INT_MIN;
-            if(shape==4 && rotation==0){
-                float xStart = mid - 50;
-                float yStart = BLOCK_SIZE;
-                for(int i=0;i<4;i++){                    
-                    Block b;
-                    b.x = xStart+(i*BLOCK_SIZE);
-                    if (b.x>xMax)    xMax = b.x;
-                    if (b.x<xMin)    xMin = b.x;
-                    if (b.x>yMax)    yMax = b.x;
-                    b.y = yStart;
-                    b.color = color;
-                    blocks.push_back(b);
-                }
-            }
-            else if(shape==4 && rotation==1){
-                float xStart = mid;
-                float yStart = BLOCK_SIZE;
-                for(int i=0;i<4;i++){                    
-                    Block b;
-                    b.y = yStart+(i*BLOCK_SIZE);
-                    if (b.x>xMax)    xMax = b.x;
-                    if (b.x<xMin)    xMin = b.x;
-                    if (b.x>yMax)    yMax = b.x;
-                    b.x = xStart;
-                    b.color = color;
-                    blocks.push_back(b);
-                }                
+        float mid;
+        Color color;
+        shapeType type;
+        int rotation;
+        std::vector<Block> blocks;
+
+
+        Shape() {
+
+            type = static_cast<shapeType>(rand() % 7);
+            rotation = rand() % shapes.at(type).size();
+            mid = Scale25(WINDOW_WIDTH / 2);
+            color = COLORS.at(type);
+
+            initializeBlocks();
+        }
+
+        void initializeBlocks() {
+            blocks.clear(); 
+            float xStart = mid;
+            float yStart = 50.0f;
+
+            for (const auto& offset : shapes.at(type)[rotation]) {
+                Block block;
+                block.x = static_cast<int>(xStart + offset.first * BLOCK_SIZE);
+                block.y = static_cast<int>(yStart + offset.second * BLOCK_SIZE);
+                block.color = color;
+                blocks.push_back(block);
             }
         }
+
 
 };
 
@@ -175,7 +206,7 @@ class Blocks{
 
         }
 
-        bool fallOrNot(std::vector<Block> blocksToUpdate){
+        bool fallOrNot(std::vector<Block>& blocksToUpdate){
 
             for(Block& block: blocksToUpdate){
                 if ((top[block.x]-block.y)==0){
@@ -187,12 +218,7 @@ class Blocks{
 
         void updateBlocksY(std::unordered_map<float,float>& top) {
 
-
-            // std::vector<Block> blocksToUpdate = activeShape.blocks;            
-            // activeShape.blocks.clear();
-            float yMax = INT_MIN;  
             bool fall = fallOrNot(activeShape.blocks);
-
 
             for (Block& block : activeShape.blocks) {
 
@@ -207,42 +233,48 @@ class Blocks{
                     top[block.x] = std::min(top[block.x],block.y - BLOCK_SIZE);
                     spawn = true;          
                 }           
-                if (block.y>yMax)    yMax = block.y;
 
             }
 
-            activeShape.yMax = yMax;
 
-            std::string displayText2 = std::to_string(activeShape.yMax+BLOCK_SIZE);
-            DrawText(displayText2.c_str(), 10, 10, 15, WHITE);              
+            // std::string displayText2 = std::to_string(activeShape.yMax+BLOCK_SIZE);
+            // DrawText(displayText2.c_str(), 10, 10, 15, WHITE);              
 
         }
+
+
 
         void updateBlocksX() {        
 
             Vector2 mousePosition = GetMousePosition();
-            float mouseX = std::clamp(mousePosition.x, 50.0f, static_cast<float>(WINDOW_WIDTH - 50));
-
+            float mouseX = std::clamp(mousePosition.x, 0.0f, static_cast<float>(WINDOW_WIDTH - BLOCK_SIZE));
 
             float updateX = Scale25(mouseX - activeShape.mid);
+
+
+            // Clamp updateX to ensure the entire shape stays within the window
+            for (Block& block : activeShape.blocks) {
+                float potentialNextX = block.x + updateX;
+                
+                if (potentialNextX < 0) {
+                    updateX = -block.x;
+                }
+                if (potentialNextX > (WINDOW_WIDTH - BLOCK_SIZE)) {
+                    updateX = (WINDOW_WIDTH - BLOCK_SIZE) - block.x;
+                }
+            }
             
             float sumX = 0;
-            float xMax = activeShape.blocks[0].x;  
-            float xMin = activeShape.blocks[0].x;  
-             
+            
 
             for (Block& block : activeShape.blocks) {
                 float nextX = block.x + updateX;
                 block.x = nextX;
                 
                 sumX += block.x;
-                if (block.x>xMax)    xMax = block.x;
-                if (block.x<xMin)    xMin = block.x;
             }
 
             activeShape.mid = sumX / activeShape.blocks.size();
-            activeShape.xMin = xMin;
-            activeShape.xMax = xMax;
         }
 
         
