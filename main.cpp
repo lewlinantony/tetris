@@ -147,15 +147,25 @@ class Blocks{
         Shape activeShape;
         std::unordered_map<int,std::unordered_map<int,Block>> staticBlocks;
         std::unordered_map<float,float> top;
+        std::unordered_map<int,std::unordered_map<int,Block>> forbiddenBlocks;
+
 
         Blocks(){
             for(int i=0;i<WINDOW_WIDTH;i=i+BLOCK_SIZE){
                 top[(float)i]=WINDOW_HEIGHT-BLOCK_SIZE;
             }
+
+            for(int i=0;i<WINDOW_WIDTH;i=i+BLOCK_SIZE){
+                Block block;
+                block.x=i;
+                block.y=WINDOW_HEIGHT-BLOCK_SIZE;
+                staticBlocks[i][WINDOW_HEIGHT] = block;
+            }            
         }
 
         void spawnBlock(){
             activeShape = Shape();
+            forbiddenBlocks.clear();
         }        
 
         bool blockMovementXDelay(){
@@ -199,7 +209,18 @@ class Blocks{
                     DrawRectangleRec(block,cellC.second.color);
                 }
             }
-    
+            for(auto& cellR:forbiddenBlocks){
+                for(auto& cellC: cellR.second){
+                    Rectangle block = {
+                        (float)cellC.second.x,
+                        (float)cellC.second.y,
+                        (float)BLOCK_SIZE,
+                        (float)BLOCK_SIZE,  
+                    };
+                    DrawRectangleRec(block,WHITE);//cellC.second.color);
+                }
+            }
+        
 
       
   
@@ -209,9 +230,18 @@ class Blocks{
         bool fallOrNot(std::vector<Block>& blocksToUpdate){
 
             for(Block& block: blocksToUpdate){
-                if ((top[block.x]-block.y)==0){
+                // if ((top[block.x]-block.y)==0){
+                //     return false;
+                // }
+                float nextY = block.y+BLOCK_SIZE;
+                if ( (staticBlocks.count(block.x)>0) &&  
+                     (staticBlocks[block.x].count(nextY)>0)){
                     return false;
                 }
+                if (forbiddenBlocks.count(block.x) && 
+                    forbiddenBlocks[block.x].count(nextY)) {
+                    return false;  // Blocked by forbidden area
+                }                
             }
             return true;
         }
@@ -242,7 +272,27 @@ class Blocks{
 
         }
 
+        float findLower(float y) {
+            float low = 0.0f;
+            for (float x = 0; x < WINDOW_WIDTH; x += BLOCK_SIZE) {
+                if ((staticBlocks.count(x) > 0 && staticBlocks[x].count(y) > 0) ||
+                    (forbiddenBlocks.count(x) > 0 && forbiddenBlocks[x].count(y) > 0)) {
+                    low = std::min(low,x)  ;
+                }
+            }
+            return low;  
+        }
 
+        float findUpper(float y) {
+            float high = WINDOW_WIDTH;
+            for (float x = WINDOW_WIDTH - BLOCK_SIZE; x >= 0; x -= BLOCK_SIZE) {
+                if ((staticBlocks.count(x) > 0 && staticBlocks[x].count(y) > 0) ||
+                    (forbiddenBlocks.count(x) > 0 && forbiddenBlocks[x].count(y) > 0)) {
+                    high = std::max(high,x)  ;
+                }
+            }
+            return high;  
+        }
 
         void updateBlocksX() {        
 
@@ -255,13 +305,50 @@ class Blocks{
             // Clamp updateX to ensure the entire shape stays within the window
             for (Block& block : activeShape.blocks) {
                 float potentialNextX = block.x + updateX;
-                
-                if (potentialNextX < 0) {
-                    updateX = -block.x;
+                float lowerLimit = findLower(block.y);
+                float upperLImit = findUpper(block.y);
+                if (potentialNextX < lowerLimit) {
+                    updateX = lowerLimit - block.x;
                 }
-                if (potentialNextX > (WINDOW_WIDTH - BLOCK_SIZE)) {
-                    updateX = (WINDOW_WIDTH - BLOCK_SIZE) - block.x;
+                else if (potentialNextX > (upperLImit - BLOCK_SIZE)) {
+                    updateX = (upperLImit - BLOCK_SIZE) - block.x;
                 }
+
+                if ((forbiddenBlocks.count(potentialNextX)>0) &&
+                   (forbiddenBlocks[potentialNextX].count(block.y)>0))
+                    return;
+                if ((staticBlocks.count(potentialNextX)>0) &&
+                     (staticBlocks[potentialNextX].count(block.y)>0))
+                    {
+                        for(int i=block.y;i<WINDOW_HEIGHT;i+=25){
+                            int startX = 0;
+                            int endX = WINDOW_WIDTH - BLOCK_SIZE;                        
+                            if (block.x > potentialNextX){
+                                endX = block.x-BLOCK_SIZE;
+                                while(endX>0 && staticBlocks[endX].count(i) <= 0){
+                                    endX-=25;
+                                }
+                            }
+                            else{
+                                startX = block.x;
+                                while(startX<WINDOW_WIDTH && staticBlocks[startX].count(i) <= 0){
+                                    startX+=25; 
+                                }
+                            }                                                      
+
+
+                            for (float x = startX; x <= endX; x += BLOCK_SIZE) {
+                                Block tempBlock = block;
+                                tempBlock.x = x;
+                                tempBlock.y = i;
+
+                                forbiddenBlocks[tempBlock.x][tempBlock.y] = tempBlock;
+                            }
+                        }
+                    
+
+                        return;
+                    }
             }
             
             float sumX = 0;
@@ -319,6 +406,7 @@ class Game{
             }
         }
         void Reset() {
+
             blocks = Blocks();  
             gameOver = false;
             spawn = true;
