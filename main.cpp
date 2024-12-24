@@ -158,7 +158,7 @@ class Blocks{
             for(int i=0;i<WINDOW_WIDTH;i=i+BLOCK_SIZE){
                 Block block;
                 block.x=i;
-                block.y=WINDOW_HEIGHT-BLOCK_SIZE;
+                block.y=WINDOW_HEIGHT;
                 staticBlocks[i][WINDOW_HEIGHT] = block;
             }            
         }
@@ -189,15 +189,7 @@ class Blocks{
         }
 
         void Draw(){
-            for (auto& cell: activeShape.blocks){
-                Rectangle block = {
-                    (float)cell.x,
-                    (float)cell.y,
-                    (float)BLOCK_SIZE,
-                    (float)BLOCK_SIZE,  
-                };        
-                DrawRectangleRec(block,cell.color);
-            }
+
             for(auto& cellR:staticBlocks){
                 for(auto& cellC: cellR.second){
                     Rectangle block = {
@@ -209,21 +201,28 @@ class Blocks{
                     DrawRectangleRec(block,cellC.second.color);
                 }
             }
-            for(auto& cellR:forbiddenBlocks){
-                for(auto& cellC: cellR.second){
-                    Rectangle block = {
-                        (float)cellC.second.x,
-                        (float)cellC.second.y,
-                        (float)BLOCK_SIZE,
-                        (float)BLOCK_SIZE,  
-                    };
-                    DrawRectangleRec(block,WHITE);//cellC.second.color);
-                }
-            }
-        
+            // for(auto& cellR:forbiddenBlocks){
+            //     for(auto& cellC: cellR.second){
+            //         Rectangle block = {
+            //             (float)cellC.second.x,
+            //             (float)cellC.second.y,
+            //             (float)BLOCK_SIZE,
+            //             (float)BLOCK_SIZE,  
+            //         };
+            //         DrawRectangleRec(block,WHITE);
+            //     }
+            // }      
+            for (auto& cell: activeShape.blocks){
+                Rectangle block = {
+                    (float)cell.x,
+                    (float)cell.y,
+                    (float)BLOCK_SIZE,
+                    (float)BLOCK_SIZE,  
+                };        
+                DrawRectangleRec(block,cell.color);
+                // visualizeLimits(cell);
 
-      
-  
+            }              
 
         }
 
@@ -265,33 +264,51 @@ class Blocks{
                 }           
 
             }
-
-
-            // std::string displayText2 = std::to_string(activeShape.yMax+BLOCK_SIZE);
-            // DrawText(displayText2.c_str(), 10, 10, 15, WHITE);              
+        
 
         }
 
-        float findLower(float y) {
+        float findLower(Block block) {
             float low = 0.0f;
-            for (float x = 0; x < WINDOW_WIDTH; x += BLOCK_SIZE) {
-                if ((staticBlocks.count(x) > 0 && staticBlocks[x].count(y) > 0) ||
-                    (forbiddenBlocks.count(x) > 0 && forbiddenBlocks[x].count(y) > 0)) {
-                    low = std::min(low,x)  ;
+            for (float x = block.x; x >= 0; x -= BLOCK_SIZE) {
+                if ((staticBlocks.count(x) > 0 && staticBlocks[x].count(block.y) > 0) ||
+                    (forbiddenBlocks.count(x) > 0 && forbiddenBlocks[x].count(block.y) > 0)) {
+                    low = x + BLOCK_SIZE;
+                    break;
                 }
             }
             return low;  
         }
 
-        float findUpper(float y) {
+        float findUpper(Block block) {
             float high = WINDOW_WIDTH;
-            for (float x = WINDOW_WIDTH - BLOCK_SIZE; x >= 0; x -= BLOCK_SIZE) {
-                if ((staticBlocks.count(x) > 0 && staticBlocks[x].count(y) > 0) ||
-                    (forbiddenBlocks.count(x) > 0 && forbiddenBlocks[x].count(y) > 0)) {
-                    high = std::max(high,x)  ;
+            for (float x = WINDOW_WIDTH - BLOCK_SIZE; x >= block.x; x -= BLOCK_SIZE) {
+                if ((staticBlocks.count(x) > 0 && staticBlocks[x].count(block.y) > 0) ||
+                    (forbiddenBlocks.count(x) > 0 && forbiddenBlocks[x].count(block.y) > 0)) {
+                    high = std::min(high,x);           
                 }
             }
             return high;  
+        }
+
+        void visualizeLimits(Block block) {
+            float lowerLimit = findLower(block);
+            float upperLimit = findUpper(block);
+
+
+            Rectangle lowBlock = { lowerLimit-BLOCK_SIZE, (float)block.y, BLOCK_SIZE, BLOCK_SIZE };
+            DrawRectangleRec(lowBlock, BLACK);  
+
+            Rectangle highBlock = { upperLimit , (float)block.y, BLOCK_SIZE, BLOCK_SIZE };
+            DrawRectangleRec(highBlock, BLACK);  
+
+            std::string lowerText = "L" + std::to_string(lowerLimit);
+            std::string upperText = "U" + std::to_string(upperLimit);
+            std::string blockXText = "X " + std::to_string(block.x);
+
+            DrawText(lowerText.c_str(), 10, 10, 15, WHITE);     
+            DrawText(upperText.c_str(), 120, 10, 15, WHITE);                                     
+            DrawText(blockXText.c_str(), 280, 10, 15, WHITE);
         }
 
         void updateBlocksX() {        
@@ -301,24 +318,16 @@ class Blocks{
 
             float updateX = Scale25(mouseX - activeShape.mid);
 
+            std::vector<float> updateVec;
 
-            // Clamp updateX to ensure the entire shape stays within the window
             for (Block& block : activeShape.blocks) {
                 float potentialNextX = block.x + updateX;
-                float lowerLimit = findLower(block.y);
-                float upperLImit = findUpper(block.y);
-                if (potentialNextX < lowerLimit) {
-                    updateX = lowerLimit - block.x;
-                }
-                else if (potentialNextX > (upperLImit - BLOCK_SIZE)) {
-                    updateX = (upperLImit - BLOCK_SIZE) - block.x;
-                }
+                
 
-                if ((forbiddenBlocks.count(potentialNextX)>0) &&
-                   (forbiddenBlocks[potentialNextX].count(block.y)>0))
-                    return;
-                if ((staticBlocks.count(potentialNextX)>0) &&
-                     (staticBlocks[potentialNextX].count(block.y)>0))
+                if (((forbiddenBlocks.count(potentialNextX)>0) &&
+                   (forbiddenBlocks[potentialNextX].count(block.y)>0)) ||
+                   ((staticBlocks.count(potentialNextX)>0) &&
+                     (staticBlocks[potentialNextX].count(block.y)>0)))
                     {
                         for(int i=block.y;i<WINDOW_HEIGHT;i+=25){
                             int startX = 0;
@@ -346,13 +355,26 @@ class Blocks{
                             }
                         }
                     
-
-                        return;
                     }
+                float lowerLimit = findLower(block);
+                float upperLImit = findUpper(block);
+                
+                if (potentialNextX < lowerLimit) {
+                    updateX = std::max(updateX,lowerLimit - block.x);
+                }
+                else if (potentialNextX > (upperLImit - BLOCK_SIZE)) {
+                    updateX = std::min(updateX,(upperLImit - BLOCK_SIZE) - block.x);
+                }      
+
+                updateVec.push_back(updateX);       
             }
             
             float sumX = 0;
             
+            for (float& up : updateVec) {
+                std::cout << up << " ";
+            }
+            std::cout <<"= "<<updateX<< std::endl;  // End the line after printing all elements
 
             for (Block& block : activeShape.blocks) {
                 float nextX = block.x + updateX;
@@ -453,8 +475,8 @@ int main(){
             }
         }
 
-        std::string displayText2 = std::to_string(game.gameOver);
-        DrawText(displayText2.c_str(), 15, 15, 10, WHITE); 
+        // std::string displayText2 = std::to_string(game.gameOver);
+        // DrawText(displayText2.c_str(), 15, 15, 10, WHITE); 
 
         game.visualieGrid();
         game.Draw();
