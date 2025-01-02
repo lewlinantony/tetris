@@ -143,6 +143,7 @@ class Shape{
 
 
 class Blocks{
+ 
     public:
         Shape activeShape;
         std::unordered_map<int,std::unordered_map<int,Block>> staticBlocks;
@@ -188,50 +189,9 @@ class Blocks{
             return false;
         }
 
-        void Draw(){
-
-            for(auto& cellR:staticBlocks){
-                for(auto& cellC: cellR.second){
-                    Rectangle block = {
-                        (float)cellC.second.x,
-                        (float)cellC.second.y,
-                        (float)BLOCK_SIZE,
-                        (float)BLOCK_SIZE,  
-                    };
-                    DrawRectangleRec(block,cellC.second.color);
-                }
-            }
-            // for(auto& cellR:forbiddenBlocks){
-            //     for(auto& cellC: cellR.second){
-            //         Rectangle block = {
-            //             (float)cellC.second.x,
-            //             (float)cellC.second.y,
-            //             (float)BLOCK_SIZE,
-            //             (float)BLOCK_SIZE,  
-            //         };
-            //         DrawRectangleRec(block,WHITE);
-            //     }
-            // }      
-            for (auto& cell: activeShape.blocks){
-                Rectangle block = {
-                    (float)cell.x,
-                    (float)cell.y,
-                    (float)BLOCK_SIZE,
-                    (float)BLOCK_SIZE,  
-                };        
-                DrawRectangleRec(block,cell.color);
-                // visualizeLimits(cell);
-
-            }              
-
-        }
-
         bool fallOrNot(std::vector<Block>& blocksToUpdate){
 
             for(Block& block: blocksToUpdate){
-                // if ((top[block.x]-block.y)==0){
-                //     return false;
-                // }
                 float nextY = block.y+BLOCK_SIZE;
                 if ( (staticBlocks.count(block.x)>0) &&  
                      (staticBlocks[block.x].count(nextY)>0)){
@@ -289,27 +249,7 @@ class Blocks{
                 }
             }
             return high;  
-        }
-
-        void visualizeLimits(Block block) {
-            float lowerLimit = findLower(block);
-            float upperLimit = findUpper(block);
-
-
-            Rectangle lowBlock = { lowerLimit-BLOCK_SIZE, (float)block.y, BLOCK_SIZE, BLOCK_SIZE };
-            DrawRectangleRec(lowBlock, BLACK);  
-
-            Rectangle highBlock = { upperLimit , (float)block.y, BLOCK_SIZE, BLOCK_SIZE };
-            DrawRectangleRec(highBlock, BLACK);  
-
-            std::string lowerText = "L" + std::to_string(lowerLimit);
-            std::string upperText = "U" + std::to_string(upperLimit);
-            std::string blockXText = "X " + std::to_string(block.x);
-
-            DrawText(lowerText.c_str(), 10, 10, 15, WHITE);     
-            DrawText(upperText.c_str(), 120, 10, 15, WHITE);                                     
-            DrawText(blockXText.c_str(), 280, 10, 15, WHITE);
-        }
+        }   
 
         void updateBlocksX() {        
 
@@ -386,14 +326,67 @@ class Blocks{
             activeShape.mid = sumX / activeShape.blocks.size();
         }
 
-        
+};
+
+class Renderer {
+public:
+    static void DrawBlock(const Block& block) {
+        Rectangle rectangle = {
+            (float)block.x,
+            (float)block.y,
+            (float)BLOCK_SIZE,
+            (float)BLOCK_SIZE
+        };
+        DrawRectangleRec(rectangle, block.color);
+    }
+
+    static void DrawGrid() {
+        for (int x = 0; x < WINDOW_WIDTH; x = x + BLOCK_SIZE) {
+            for (int y = 0; y < WINDOW_HEIGHT; y += BLOCK_SIZE) {
+                Rectangle cell = { (float)x, (float)y, (float)BLOCK_SIZE, (float)BLOCK_SIZE };
+                DrawRectangleLinesEx(cell, 0.5, WHITE_MASK);
+            }
+        }
+    }
+
+    static void DrawActiveShape(const Shape& activeShape) {
+        for (const auto& block : activeShape.blocks) {
+            DrawBlock(block);
+        }
+    }
+
+    static void DrawStaticBlocks(const std::unordered_map<int, std::unordered_map<int, Block>>& staticBlocks) {
+        for (const auto& row : staticBlocks) {
+            for (const auto& block : row.second) {
+                DrawBlock(block.second);
+            }
+        }
+    }
+    static void visualizeLimits(Block block,Blocks blocks) {
+        float lowerLimit = blocks.findLower(block);
+        float upperLimit = blocks.findUpper(block);
 
 
+        Rectangle lowBlock = { lowerLimit-BLOCK_SIZE, (float)block.y, BLOCK_SIZE, BLOCK_SIZE };
+        DrawRectangleRec(lowBlock, BLACK);  
+
+        Rectangle highBlock = { upperLimit , (float)block.y, BLOCK_SIZE, BLOCK_SIZE };
+        DrawRectangleRec(highBlock, BLACK);  
+
+        std::string lowerText = "L" + std::to_string(lowerLimit);
+        std::string upperText = "U" + std::to_string(upperLimit);
+        std::string blockXText = "X " + std::to_string(block.x);
+
+        DrawText(lowerText.c_str(), 10, 10, 15, WHITE);     
+        DrawText(upperText.c_str(), 120, 10, 15, WHITE);                                     
+        DrawText(blockXText.c_str(), 280, 10, 15, WHITE);
+    }    
 };
 
 class Game{
     public:
         Blocks blocks = Blocks();
+        Renderer renderer;
         bool visualise = true;
         bool gameOver = false;
 
@@ -408,23 +401,14 @@ class Game{
             }
         }    
         void Draw(){
-            blocks.Draw();
+            renderer.DrawStaticBlocks(blocks.staticBlocks);
+            renderer.DrawActiveShape(blocks.activeShape);
         }
 
         void visualieGrid(){
             if(visualise)
-            {        
-                for(int x=0;x<WINDOW_WIDTH;x=x+BLOCK_SIZE){
-                    for(int y=0;y<WINDOW_HEIGHT;y+=BLOCK_SIZE){
-                        Rectangle cell = {
-                            (float)x,
-                            (float)y,
-                            (float)BLOCK_SIZE,
-                            (float)BLOCK_SIZE,   // since we are drawing a square width and height are the same i.e. BLOCK_SIZE
-                        };
-                        DrawRectangleLinesEx(cell,0.5,WHITE_MASK);
-                    }
-                }
+            {   
+                renderer.DrawGrid();    
             }
         }
         void Reset() {
@@ -474,9 +458,6 @@ int main(){
                 game.Reset();
             }
         }
-
-        // std::string displayText2 = std::to_string(game.gameOver);
-        // DrawText(displayText2.c_str(), 15, 15, 10, WHITE); 
 
         game.visualieGrid();
         game.Draw();
