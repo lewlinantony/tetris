@@ -135,33 +135,25 @@ class Shape{
 };
 
 
-
-
-
-
-
-
-
 class Blocks{
  
     public:
         Shape activeShape;
         std::unordered_map<int,std::unordered_map<int,Block>> staticBlocks;
-        std::unordered_map<float,float> top;
         std::unordered_map<int,std::unordered_map<int,Block>> forbiddenBlocks;
+        std::vector<int> YFreq;
 
 
         Blocks(){
-            for(int i=0;i<WINDOW_WIDTH;i=i+BLOCK_SIZE){
-                top[(float)i]=WINDOW_HEIGHT-BLOCK_SIZE;
-            }
 
             for(int i=0;i<WINDOW_WIDTH;i=i+BLOCK_SIZE){
                 Block block;
                 block.x=i;
                 block.y=WINDOW_HEIGHT;
                 staticBlocks[i][WINDOW_HEIGHT] = block;
-            }            
+            }       
+            YFreq.resize(WINDOW_HEIGHT/BLOCK_SIZE, 0);
+
         }
 
         void spawnBlock(){
@@ -178,7 +170,13 @@ class Blocks{
             return false;
         }
 
-
+        void checkYFull(){
+            for(int i=WINDOW_HEIGHT-BLOCK_SIZE;i>=0;i=i-25){
+                if(YFreq[i/BLOCK_SIZE]>=15){
+                    YFreq[i/BLOCK_SIZE]=111;
+                }
+            }
+        }
 
         bool blockMovementYDelay(){
             currentTime = GetTime();
@@ -205,7 +203,7 @@ class Blocks{
             return true;
         }
 
-        void updateBlocksY(std::unordered_map<float,float>& top) {
+        void updateBlocksY() {
 
             bool fall = fallOrNot(activeShape.blocks);
 
@@ -219,12 +217,12 @@ class Blocks{
                 } 
                 else{
                     staticBlocks[block.x][block.y] = block;
-                    top[block.x] = std::min(top[block.x],block.y - BLOCK_SIZE);
+                    YFreq[block.y / BLOCK_SIZE]++;
+                    checkYFull();
                     spawn = true;          
-                }           
+                }                          
 
-            }
-        
+            }       
 
         }
 
@@ -269,7 +267,7 @@ class Blocks{
                    ((staticBlocks.count(potentialNextX)>0) &&
                      (staticBlocks[potentialNextX].count(block.y)>0)))
                     {
-                        for(int i=block.y;i<WINDOW_HEIGHT;i+=25){
+                        for(int i=block.y;i<WINDOW_HEIGHT;i+=BLOCK_SIZE){
                             int startX = 0;
                             int endX = WINDOW_WIDTH - BLOCK_SIZE;                        
                             if (block.x > potentialNextX){
@@ -283,9 +281,7 @@ class Blocks{
                                 while(startX<WINDOW_WIDTH && staticBlocks[startX].count(i) <= 0){
                                     startX+=25; 
                                 }
-                            }                                                      
-
-
+                            }                                                 
                             for (float x = startX; x <= endX; x += BLOCK_SIZE) {
                                 Block tempBlock = block;
                                 tempBlock.x = x;
@@ -311,10 +307,6 @@ class Blocks{
             
             float sumX = 0;
             
-            for (float& up : updateVec) {
-                std::cout << up << " ";
-            }
-            std::cout <<"= "<<updateX<< std::endl;  // End the line after printing all elements
 
             for (Block& block : activeShape.blocks) {
                 float nextX = block.x + updateX;
@@ -362,6 +354,15 @@ public:
             }
         }
     }
+
+    static void blockYFreq(std::vector<int>& Yfreq){
+        for (size_t i = 0; i < Yfreq.size(); i++) {
+                int yPos = i * BLOCK_SIZE;
+                std::string freq = std::to_string(Yfreq[i]);
+                DrawText(freq.c_str(), WINDOW_WIDTH + 5, yPos, 10, WHITE);
+        }
+    }
+
     static void visualizeLimits(Block block,Blocks blocks) {
         float lowerLimit = blocks.findLower(block);
         float upperLimit = blocks.findUpper(block);
@@ -389,6 +390,7 @@ class Game{
         Renderer renderer;
         bool visualise = true;
         bool gameOver = false;
+        bool blockfreq = true;
 
         void checkGameOver() {
             for (auto& rowX : blocks.staticBlocks) {
@@ -403,14 +405,10 @@ class Game{
         void Draw(){
             renderer.DrawStaticBlocks(blocks.staticBlocks);
             renderer.DrawActiveShape(blocks.activeShape);
+            renderer.DrawGrid();
+            if (blockfreq) renderer.blockYFreq(blocks.YFreq);
         }
 
-        void visualieGrid(){
-            if(visualise)
-            {   
-                renderer.DrawGrid();    
-            }
-        }
         void Reset() {
 
             blocks = Blocks();  
@@ -425,10 +423,11 @@ class Game{
 
 
 int main(){
-    InitWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Tetris");
+    Game game = Game();
+
+    InitWindow(WINDOW_WIDTH+(game.blockfreq? 25:0),WINDOW_HEIGHT,"Tetris");
     SetTargetFPS(60);
     
-    Game game = Game();
 
     while(WindowShouldClose()==false){
         BeginDrawing();
@@ -442,14 +441,15 @@ int main(){
 
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
                 while(!spawn)
-                    game.blocks.updateBlocksY(game.blocks.top);
+                    game.blocks.updateBlocksY();
             }
+
 
             if ((!game.blocks.activeShape.blocks.empty()) && (game.blocks.blockMovementXDelay()))
                 game.blocks.updateBlocksX();
 
             if((game.blocks.blockMovementYDelay()) && (!game.blocks.activeShape.blocks.empty()))
-                game.blocks.updateBlocksY(game.blocks.top);    
+                game.blocks.updateBlocksY();    
 
             game.checkGameOver();
         }
@@ -459,7 +459,7 @@ int main(){
             }
         }
 
-        game.visualieGrid();
+
         game.Draw();
 
         ClearBackground(BG_COLOR);
@@ -469,3 +469,7 @@ int main(){
     CloseWindow();
     return 0;
 }
+
+
+
+//there is  some problem with the click to drop mechanism fix it to proceed with whatever the rest 
