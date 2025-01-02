@@ -13,6 +13,9 @@ const int WINDOW_HEIGHT = 700;
 const float BLOCK_SIZE = 25.0;
 const double Y_SPEED=0.1;
 const double X_SPEED=0.05;
+const int POINTS_PER_LINE = 100;
+const double LINE_CLEAR_DELAY = 0.5;
+double lastLineClear = 0;
 Color BG_COLOR = {0,1,45,1};
 Color WHITE_MASK = {255,255,255,100};
 
@@ -173,7 +176,7 @@ class Blocks{
         void checkYFull(){
             for(int i=WINDOW_HEIGHT-BLOCK_SIZE;i>=0;i=i-25){
                 if(YFreq[i/BLOCK_SIZE]>=15){
-                    YFreq[i/BLOCK_SIZE]=111;
+                    YFreq[i/BLOCK_SIZE]=0;
                 }
             }
         }
@@ -355,6 +358,11 @@ public:
         }
     }
 
+    static void drawScore(int score){
+        std::string scoreText = "Score: " + std::to_string(score);
+        DrawText(scoreText.c_str(), 10, 30, 20, WHITE); 
+    }
+
     static void blockYFreq(std::vector<int>& Yfreq){
         for (size_t i = 0; i < Yfreq.size(); i++) {
                 int yPos = i * BLOCK_SIZE;
@@ -388,9 +396,10 @@ class Game{
     public:
         Blocks blocks = Blocks();
         Renderer renderer;
+        int score = 0;
         bool visualise = true;
         bool gameOver = false;
-        bool blockfreq = true;
+        bool blockfreq = false;
 
         void checkGameOver() {
             for (auto& rowX : blocks.staticBlocks) {
@@ -406,14 +415,63 @@ class Game{
             renderer.DrawStaticBlocks(blocks.staticBlocks);
             renderer.DrawActiveShape(blocks.activeShape);
             renderer.DrawGrid();
+            renderer.drawScore(score);           
             if (blockfreq) renderer.blockYFreq(blocks.YFreq);
         }
-
+        void clearFullRows() {
+            currentTime = GetTime();
+            if (currentTime - lastLineClear < LINE_CLEAR_DELAY) return;
+            
+            std::vector<int> fullRows;
+            
+            // Find full rows
+            for (int y = WINDOW_HEIGHT - BLOCK_SIZE; y >= 0; y -= BLOCK_SIZE) {
+                int blockCount = 0;
+                for (int x = 0; x < WINDOW_WIDTH; x += BLOCK_SIZE) {
+                    if (blocks.staticBlocks[x].count(y) > 0) {
+                        blockCount++;
+                    }
+                }
+                if (blockCount >= WINDOW_WIDTH/BLOCK_SIZE) {
+                    fullRows.push_back(y);
+                    blocks.YFreq[y/BLOCK_SIZE] = 0;
+                }
+            }
+            
+            if (fullRows.empty()) return;
+            
+            // Update score
+            score += POINTS_PER_LINE * fullRows.size();
+            
+            // Clear full rows and move blocks down
+            for (int fullRow : fullRows) {
+                // Remove blocks in the full row
+                for (int x = 0; x < WINDOW_WIDTH; x += BLOCK_SIZE) {
+                    blocks.staticBlocks[x].erase(fullRow);
+                }
+                
+                // Move all blocks above down
+                for (int y = fullRow - BLOCK_SIZE; y >= 0; y -= BLOCK_SIZE) {
+                    for (int x = 0; x < WINDOW_WIDTH; x += BLOCK_SIZE) {
+                        if (blocks.staticBlocks[x].count(y) > 0) {
+                            Block block = blocks.staticBlocks[x][y];
+                            blocks.staticBlocks[x].erase(y);
+                            block.y += BLOCK_SIZE;
+                            blocks.staticBlocks[x][block.y] = block;
+                            blocks.YFreq[y/BLOCK_SIZE]--;
+                            blocks.YFreq[(y/BLOCK_SIZE) + 1]++;
+                        }
+                    }
+                }
+            }
+            
+            lastLineClear = currentTime;
+        }
         void Reset() {
-
             blocks = Blocks();  
             gameOver = false;
             spawn = true;
+            score = 0;
         }        
 
 
@@ -439,10 +497,10 @@ int main(){
                 spawn = false;
             }
 
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
-                while(!spawn)
-                    game.blocks.updateBlocksY();
-            }
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+            while(!spawn)
+                game.blocks.updateBlocksY();
+        }
 
 
             if ((!game.blocks.activeShape.blocks.empty()) && (game.blocks.blockMovementXDelay()))
@@ -452,6 +510,7 @@ int main(){
                 game.blocks.updateBlocksY();    
 
             game.checkGameOver();
+            game.clearFullRows();
         }
         else{
             if (IsKeyPressed(KEY_R)) {
@@ -472,4 +531,3 @@ int main(){
 
 
 
-//there is  some problem with the click to drop mechanism fix it to proceed with whatever the rest 
